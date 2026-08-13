@@ -99,6 +99,9 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:-dev_only_change_in_prod_min_32_chars_xxxxxxxx}
       INSTALLATION_SLUG: ${INSTALLATION_SLUG:-dev}
       STORAGE_ENDPOINT: http://minio:9000
+      # Endpoint público para URLs firmadas (lo que ve el navegador del usuario final).
+      # En dev, el cliente accede a MinIO por localhost:9000. En prod, sería el dominio público.
+      STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-sabia-dev}
       STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-sabia_minio}
       STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-sabia_minio_dev_password_change_me}

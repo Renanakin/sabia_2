@@ -46,6 +46,35 @@ export function getS3Client(): S3Client {
   return client;
 }
 
+/**
+ * Cliente S3 "virtual" con el endpoint PÚBLICO.
+ *
+ * Se usa SOLO para firmar URLs que verá el usuario final (navegador).
+ * Si no se setea STORAGE_PUBLIC_ENDPOINT, usa el endpoint interno
+ * (que es lo que pasa en dev cuando todo corre en localhost).
+ */
+export function getPublicS3Client(): S3Client {
+  const endpoint = process.env.STORAGE_PUBLIC_ENDPOINT ?? process.env.STORAGE_ENDPOINT;
+  const accessKey = process.env.STORAGE_ACCESS_KEY;
+  const secretKey = process.env.STORAGE_SECRET_KEY;
+  const region = process.env.STORAGE_REGION ?? 'us-east-1';
+  const forcePathStyle = process.env.STORAGE_FORCE_PATH_STYLE === 'true';
+
+  if (!endpoint || !accessKey || !secretKey) {
+    throw new Error(
+      'STORAGE_ENDPOINT, STORAGE_ACCESS_KEY y STORAGE_SECRET_KEY deben estar definidas. ' +
+        'Ver .env.example.'
+    );
+  }
+
+  return new S3Client({
+    endpoint,
+    region,
+    credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+    forcePathStyle,
+  });
+}
+
 export function getBucket(): string {
   const bucket = process.env.STORAGE_BUCKET;
   if (!bucket) {

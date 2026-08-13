@@ -14,7 +14,7 @@
 import 'server-only';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getS3Client, getBucket } from './s3';
+import { getS3Client, getPublicS3Client, getBucket } from './s3';
 
 const DEFAULT_EXPIRATION_SECONDS = 5 * 60; // 5 minutos
 
@@ -37,7 +37,10 @@ export async function getSignedDownloadUrl(
     throw new Error('Expiración máxima permitida: 600 segundos (10 min)');
   }
 
-  const client = getS3Client();
+  // Usar cliente PÚBLICO para firmar la URL.
+  // Si STORAGE_PUBLIC_ENDPOINT no está seteado (dev local), usa el endpoint
+  // interno del docker (que es igual al público cuando todo corre en localhost).
+  const client = getPublicS3Client();
   const command = new GetObjectCommand({
     Bucket: getBucket(),
     Key: key,
