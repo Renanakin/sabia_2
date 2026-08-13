@@ -15,7 +15,7 @@
  * Uso: `npm run db:seed` (con docker compose levantado)
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { createHash, randomBytes } from 'node:crypto';
 import { db } from '../src/lib/db/client';
 import {
@@ -23,6 +23,7 @@ import {
   users,
   accountingClients,
   userClientAccess,
+  documents,
 } from '../src/lib/db/schema';
 import { hashPassword } from '../src/lib/auth/password';
 
@@ -126,7 +127,7 @@ async function seed() {
   console.log(`   ✅ ${client!.legalName} (RUT: ${client!.rut})`);
 
   // 4. Asignación contador → cliente
-  console.log('\n4/4 Asignando contador al cliente...');
+  console.log('\n4/5 Asignando contador al cliente...');
   const contador = await db.query.users.findFirst({
     where: (u, { and, eq }) =>
       and(
@@ -150,6 +151,77 @@ async function seed() {
       console.log('   ⏭️  Asignación ya existe, skip');
     }
   }
+
+  // 5. Documentos de ejemplo
+  console.log('\n5/5 Creando documentos de ejemplo...');
+  const sampleDocs = [
+    {
+      period: '2026-07',
+      documentType: 'f29' as const,
+      fileName: 'F29_Julio_2026.pdf',
+      visibleToClient: true,
+      status: 'published' as const,
+    },
+    {
+      period: '2026-07',
+      documentType: 'balance' as const,
+      fileName: 'Balance_Julio_2026.pdf',
+      visibleToClient: true,
+      status: 'published' as const,
+    },
+    {
+      period: '2026-07',
+      documentType: 'libro_mayor' as const,
+      fileName: 'Libro_Mayor_Julio_2026.pdf',
+      visibleToClient: true,
+      status: 'published' as const,
+    },
+    {
+      period: '2026-08',
+      documentType: 'boleta_venta' as const,
+      fileName: 'BV_001_2026-08.pdf',
+      visibleToClient: false, // aún no publicado
+      status: 'pending' as const,
+    },
+    {
+      period: '2026-08',
+      documentType: 'factura_compra' as const,
+      fileName: 'FC_1234_Proveedor.pdf',
+      visibleToClient: false,
+      status: 'in_review' as const,
+    },
+  ];
+
+  let docsCreated = 0;
+  for (const d of sampleDocs) {
+    const existing = await db.query.documents.findFirst({
+      where: (doc, { and, eq }) =>
+        and(
+          eq(doc.clientId, client!.id),
+          eq(doc.fileName, d.fileName)
+        ),
+    });
+    if (existing) continue;
+    const storagePath = `${installation!.slug}/${client!.id}/${d.period}/${d.fileName}`;
+    const fileHash = createHash('sha256').update(storagePath).digest('hex');
+    await db.insert(documents).values({
+      clientId: client!.id,
+      period: d.period,
+      documentType: d.documentType,
+      fileName: d.fileName,
+      storagePath,
+      fileHash,
+      fileSize: '102400',
+      mimeType: 'application/pdf',
+      status: d.status,
+      visibleToClient: d.visibleToClient,
+      publishedAt: d.visibleToClient ? new Date() : null,
+      publishedBy: d.visibleToClient ? contador?.id ?? null : null,
+      uploadedBy: contador?.id ?? null,
+    });
+    docsCreated++;
+  }
+  console.log(`   ✅ ${docsCreated} documento(s) creado(s) (3 visibles, 2 internos)`);
 
   console.log('\n✨ Seed completo.\n');
   console.log('Credenciales de prueba:');

@@ -59,6 +59,32 @@ export const accessLevelEnum = pgEnum('access_level', [
   'admin',
 ]);
 
+export const documentTypeEnum = pgEnum('document_type', [
+  'boleta_venta',
+  'factura_venta',
+  'boleta_honorarios',
+  'factura_compra',
+  'nota_credito',
+  'nota_debito',
+  'comprobante_pago',
+  'f29',
+  'balance',
+  'estado_resultados',
+  'libro_mayor',
+  'libro_diario',
+  'conciliacion_bancaria',
+  'otro',
+]);
+
+export const documentStatusEnum = pgEnum('document_status', [
+  'pending',
+  'in_review',
+  'observed',
+  'approved',
+  'published',
+  'archived',
+]);
+
 // ============================================
 // Tabla: installations
 // ============================================
@@ -237,6 +263,51 @@ export const auditLog = pgTable(
 );
 
 // ============================================
+// Tabla: documents
+// ============================================
+// Documentos contables cargados por el panel.
+// `visible_to_client` controla si el cliente lo ve en su portal.
+
+export const documents = pgTable(
+  'documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => accountingClients.id, { onDelete: 'cascade' }),
+    period: varchar('period', { length: 7 }).notNull(), // "2026-07"
+    documentType: documentTypeEnum('document_type').notNull(),
+    fileName: text('file_name').notNull(),
+    storagePath: text('storage_path').notNull(), // key en S3/MinIO
+    fileHash: text('file_hash').notNull(), // sha256
+    fileSize: varchar('file_size', { length: 20 }),
+    mimeType: varchar('mime_type', { length: 100 }),
+    status: documentStatusEnum('status').notNull().default('pending'),
+    visibleToClient: boolean('visible_to_client').notNull().default(false),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishedBy: uuid('published_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    uploadedBy: uuid('uploaded_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Hot path: portal del cliente carga su dashboard
+    clientPeriodIdx: index('idx_documents_client_period').on(t.clientId, t.period),
+    // Hot path: lista de docs visibles al cliente
+    clientVisibleIdx: index('idx_documents_client_visible').on(
+      t.clientId,
+      t.visibleToClient,
+      t.createdAt
+    ),
+  })
+);
+
+// ============================================
 // Tipos inferidos
 // ============================================
 
@@ -257,3 +328,6 @@ export type NewUserClientAccess = typeof userClientAccess.$inferInsert;
 
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NewAuditLog = typeof auditLog.$inferInsert;
+
+export type Document = typeof documents.$inferSelect;
+export type NewDocument = typeof documents.$inferInsert;

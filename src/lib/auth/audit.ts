@@ -25,7 +25,10 @@ export type AuditAction =
   | 'installation_archived'
   | 'user_created'
   | 'user_updated'
-  | 'user_archived';
+  | 'user_archived'
+  | 'document_uploaded'
+  | 'document_published'
+  | 'document_downloaded';
 
 export interface AuditEntry {
   installationId?: string | null;
