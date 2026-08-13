@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-and-build:
+    name: Lint + Typecheck + Audit + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Auditoria de dependencias (alto y critico)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: false
+
+      - name: Scan secretos (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: npm run build
+        env:
+          # Variables dummy para que el build no falle por env faltantes
+          RESEND_API_KEY: dummy
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY: dummy
+          RECAPTCHA_SECRET_KEY: dummy
+          CONTACT_TO_EMAIL: dummy@example.com
