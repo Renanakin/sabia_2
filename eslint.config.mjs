@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/**",
+    // Sabia Contable specific:
+    "fix*.js",        // Legacy patch scripts
+    "scripts/**",     // Seed and migration scripts (run with tsx)
+    "drizzle/**",     // Auto-generated migrations
   ]),
 ]);
 

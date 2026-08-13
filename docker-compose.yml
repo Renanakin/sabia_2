@@ -1,0 +1,151 @@
+# Sabia Contable — docker-compose para DESARROLLO LOCAL
+# =====================================================
+# Levanta: Postgres + Redis + MinIO + Next.js (dev) + Nginx (proxy para *.localhost)
+#
+# IMPORTANTE: este compose es para dev. Para producción cada instalación
+# de cliente tiene su propio compose con secrets únicos (ver Fase 9).
+#
+# Uso:
+#   docker compose up -d
+#   docker compose down -v   # ⚠️ esto borra volúmenes (datos)
+#
+# En Windows, los subdominios *.localhost resuelven a 127.0.0.1 automáticamente,
+# no requiere editar el archivo hosts.
+
+services:
+  # ============================================
+  # Postgres 16 (BD principal)
+  # ============================================
+  db:
+    image: postgres:16-alpine
+    container_name: sabia_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sabia_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-sabia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sabia_dev_password_change_me}
+    volumes:
+      - sabia_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sabia_user} -d ${POSTGRES_DB:-sabia_dev}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # NO exponer el puerto a host: solo accesible desde la red docker
+    expose:
+      - "5432"
+    networks:
+      - sabia_net
+
+  # ============================================
+  # Redis 7 (cache + rate limit + cola BullMQ)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: sabia_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - sabia_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    expose:
+      - "6379"
+    networks:
+      - sabia_net
+
+  # ============================================
+  # MinIO (storage S3-compatible)
+  # ============================================
+  minio:
+    image: minio/minio:latest
+    container_name: sabia_minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-sabia_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-sabia_minio_dev_password_change_me}
+    volumes:
+      - sabia_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    expose:
+      - "9000"
+      - "9001" # consola (solo dev)
+    networks:
+      - sabia_net
+
+  # ============================================
+  # App Next.js (modo dev con HMR)
+  # ============================================
+  # En dev corre `next dev` con HMR. En prod cambia a `npm run build && npm run start`.
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sabia_app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sabia_user}:${POSTGRES_PASSWORD:-sabia_dev_password_change_me}@db:5432/${POSTGRES_DB:-sabia_dev}
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:-dev_only_change_in_prod_min_32_chars_xxxxxxxx}
+      INSTALLATION_SLUG: ${INSTALLATION_SLUG:-dev}
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-sabia-dev}
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-sabia_minio}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-sabia_minio_dev_password_change_me}
+      STORAGE_REGION: us-east-1
+      STORAGE_FORCE_PATH_STYLE: "true"
+      RESEND_API_KEY: ${RESEND_API_KEY:-dummy}
+      NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-dummy}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-dummy}
+      CONTACT_TO_EMAIL: ${CONTACT_TO_EMAIL:-dev@example.com}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: ["npm", "run", "dev:equipo"]
+    networks:
+      - sabia_net
+
+  # ============================================
+  # Nginx (reverse proxy para *.localhost en dev)
+  # ============================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sabia_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - sabia_net
+
+volumes:
+  sabia_pgdata:
+  sabia_redis:
+  sabia_minio:
+
+networks:
+  sabia_net:
+    driver: bridge
