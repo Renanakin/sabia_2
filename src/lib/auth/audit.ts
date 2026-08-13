@@ -19,7 +19,13 @@ export type AuditAction =
   | 'refresh_token'
   | 'password_changed'
   | 'mfa_enabled'
-  | 'session_expired';
+  | 'session_expired'
+  | 'installation_created'
+  | 'installation_updated'
+  | 'installation_archived'
+  | 'user_created'
+  | 'user_updated'
+  | 'user_archived';
 
 export interface AuditEntry {
   installationId?: string | null;
