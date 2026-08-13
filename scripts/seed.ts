@@ -13,19 +13,27 @@
  *    En prod, los usuarios se crean vía onboarding (ver Fase 9).
  *
  * Uso: `npm run db:seed` (con docker compose levantado)
+ *
+ * NOTA: usa una conexión directa a Postgres para evitar el
+ * `import 'server-only'` que rompe en scripts tsx.
  */
 
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import { eq, and } from 'drizzle-orm';
 import { createHash, randomBytes } from 'node:crypto';
-import { db } from '../src/lib/db/client';
-import {
-  installations,
-  users,
-  accountingClients,
-  userClientAccess,
-  documents,
-} from '../src/lib/db/schema';
+import * as schema from '../src/lib/db/schema';
+const { installations, users, accountingClients, userClientAccess, documents } = schema;
 import { hashPassword } from '../src/lib/auth/password';
+
+// Conexión directa para evitar `import 'server-only'` del client.ts
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  console.error('❌ DATABASE_URL no definida');
+  process.exit(1);
+}
+const client = postgres(databaseUrl, { max: 1 });
+const db = drizzle(client, { schema });
 
 function generateTokenHash(): string {
   return createHash('sha256')
@@ -127,7 +135,8 @@ async function seed() {
   console.log(`   ✅ ${client!.legalName} (RUT: ${client!.rut})`);
 
   // 4. Asignación contador → cliente
-  console.log('\n4/5 Asignando contador al cliente...');
+  console.log('\n4/5 Asignando accesos...');
+  // 4a. Asignar contador al cliente (admin)
   const contador = await db.query.users.findFirst({
     where: (u, { and, eq }) =>
       and(
@@ -148,7 +157,32 @@ async function seed() {
       });
       console.log('   ✅ Contador asignado al cliente (admin)');
     } else {
-      console.log('   ⏭️  Asignación ya existe, skip');
+      console.log('   ⏭️  Asignación contador ya existe, skip');
+    }
+  }
+
+  // 4b. Asignar cliente (usuario final) al cliente contable (read_only)
+  const clienteUser = await db.query.users.findFirst({
+    where: (u, { and, eq }) =>
+      and(
+        eq(u.installationId, installation!.id),
+        eq(u.email, 'cliente@sabiacontable.cl')
+      ),
+  });
+  if (clienteUser) {
+    const existingAccess = await db.query.userClientAccess.findFirst({
+      where: (a, { and, eq }) =>
+        and(eq(a.userId, clienteUser.id), eq(a.clientId, client!.id)),
+    });
+    if (!existingAccess) {
+      await db.insert(userClientAccess).values({
+        userId: clienteUser.id,
+        clientId: client!.id,
+        accessLevel: 'read_only',
+      });
+      console.log('   ✅ Cliente (usuario) asignado al cliente contable (read_only)');
+    } else {
+      console.log('   ⏭️  Asignación cliente ya existe, skip');
     }
   }
 
@@ -240,7 +274,10 @@ async function seed() {
   process.exit(0);
 }
 
-seed().catch((err) => {
+seed().catch(async (err) => {
   console.error('❌ Error en seed:', err);
+  await client.end();
   process.exit(1);
+}).then(async () => {
+  await client.end();
 });

@@ -164,6 +164,6 @@ CREATE INDEX IF NOT EXISTS "idx_documents_client_visible" ON "documents" USING b
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_installations_slug" ON "installations" USING btree ("slug");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_installations_subdomain" ON "installations" USING btree ("subdomain");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_refresh_tokens_hash" ON "refresh_tokens" USING btree ("token_hash");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_refresh_tokens_user_active" ON "refresh_tokens" USING btree ("user_id") WHERE revoked_at IS NULL AND expires_at > NOW();--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_refresh_tokens_user_active" ON "refresh_tokens" USING btree ("user_id") WHERE revoked_at IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_users_email_installation" ON "users" USING btree ("installation_id","email");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_users_email_active" ON "users" USING btree ("email") WHERE active = true;

@@ -171,10 +171,10 @@ export const refreshTokens = pgTable(
   },
   (t) => ({
     tokenHashUnique: uniqueIndex('idx_refresh_tokens_hash').on(t.tokenHash),
-    // Índice parcial: solo tokens activos (no revocados, no expirados)
+    // Índice parcial: solo tokens NO revocados (expiración se valida en query)
     userActiveIdx: index('idx_refresh_tokens_user_active')
       .on(t.userId)
-      .where(sql`revoked_at IS NULL AND expires_at > NOW()`),
+      .where(sql`revoked_at IS NULL`),
   })
 );
 
