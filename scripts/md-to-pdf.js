@@ -47,12 +47,161 @@ const CSS = `
   @page :first { margin: 0; }
 
   * { box-sizing: border-box; }
-  html { font-size: 10.5pt; }
+  html {
+    font-size: 10.5pt;
+    /* hyphenation hint for Chromium */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #1e293b;
-    line-height: 1.55;
+    line-height: 1.6;
     background: #ffffff;
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    hyphenate-limit-chars: 8 4 4;
+  }
+
+  /* ====== TIPOGRAFÍA SIN CORTES FEOS ====== */
+  p {
+    margin: 6pt 0;
+    orphans: 4;       /* ≥ 4 líneas al inicio de página */
+    widows: 4;        /* ≥ 4 líneas al final de página */
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  li {
+    orphans: 3;
+    widows: 3;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  h1, h2, h3, h4, h5 {
+    page-break-after: avoid;
+    break-after: avoid;
+    text-align: left;
+    hyphens: none;
+    -webkit-hyphens: none;
+  }
+  h1 {
+    font-size: 22pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 24pt 0 10pt 0;
+    padding-bottom: 8pt;
+    border-bottom: 3px solid #ec4899;
+  }
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 20pt 0 8pt 0;
+    padding-bottom: 4pt;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  h3 {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 14pt 0 6pt 0;
+  }
+  h4 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #334155;
+    margin: 10pt 0 4pt 0;
+  }
+  strong { color: #0f172a; }
+  a { color: #ec4899; text-decoration: none; }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 9.5pt;
+    background: #f1f5f9;
+    padding: 1pt 5pt;
+    border-radius: 3pt;
+    color: #be185d;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 12pt 14pt;
+    border-radius: 6pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.5;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+  blockquote {
+    margin: 8pt 0;
+    padding: 8pt 14pt;
+    border-left: 4px solid #ec4899;
+    background: #fdf2f8;
+    color: #831843;
+    border-radius: 0 6pt 6pt 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 14pt 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8pt 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  th, td {
+    text-align: left;
+    padding: 6pt 9pt;
+    border-bottom: 1px solid #e2e8f0;
+    /* las celdas también sin cortes feos */
+    page-break-inside: avoid;
+  }
+  th {
+    background: #0f172a;
+    color: #f1f5f9;
+    font-weight: 600;
+    font-size: 9.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  tr:nth-child(even) td { background: #f8fafc; }
+
+  /* Imágenes: entran limpias o saltan a la siguiente página */
+  img {
+    max-width: 100%;
+    max-height: 145mm;     /* no más altas que ~ 2/3 de página */
+    width: auto;
+    height: auto;
+    display: block;
+    margin: 10pt auto;
+    border-radius: 6pt;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1pt 3pt rgba(15, 23, 42, 0.08);
+    page-break-inside: avoid;
+    break-inside: avoid;
+    object-fit: contain;
+  }
+  p > img:only-child { margin: 10pt auto; }
+
+  /* Si una imagen no entra al final de la página, sáltala entera */
+  figure, .img-frame {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin: 10pt 0;
   }
 
   /* ====== PORTADA ====== */
